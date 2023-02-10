@@ -3,37 +3,38 @@ import pyspark.sql.functions as function
 from pyspark.sql import SparkSession
 from session.logger import Log4j
 from collections import deque
-#import pandas as pd
+import pyspark.pandas as ps
 import sys
 import re
+import os
 
 
 def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
-    '''Main ETL Script.
+    '''
+    Main ETL Script.
         Input : param spark :> Spark instancia.
         Output: return      :> None.
     '''
-   
     datalake_container = 'output'
     blob_container = 'csv'
     transform = deque()
     spark.conf.set('fs.azure.account.key.' + storage_name + '.blob.core.windows.net', key_blobs)
     for Iter in patterns:
-        print(f'|--------------------------------------> Matcheando tablas:{Iter} <---------------------------------------|')
+        print(f'|-----------------------------> Matcheando tablas:{Iter} <---------------------------------------|')
         match Iter:                                      
             case "Categoria.csv":                          # Transformacion   |1|
-                print(f"|---------------------------> Comensaremos con etl en la tabla {Iter} <---------------------------|")
+                print(f"|-------------------> Comensaremos con etl en la tabla {Iter} <---------------------------|")
                 if len(sys.argv) == 0:
-                    #blobs storage
+                    # Blobs storage
                     filePaths = "wasbs://" + blob_container \
                                              + "@" + storage_name \
                                              + f".blob.core.windows.net/{Iter}"
                 else:
-                    #local
-                    #filePaths = f'file:/opt/spark/spark-warehouse/csv/Categoria.csv'
-                    #hadoop
-                    filePaths = f'hdfs://fede:9000/user/fede/input/{Iter}' 
-                    print("|----------------------------------> Crea DataFrame <-----------------------------------------|")
+                    # Local
+                    # filePths = f'file:/opt/spark/spark-warehouse/Categoria.csv'
+                    # Hadoop nodo
+                    filePaths = f'hdfs://127.0.0.1:9000/user/fede/input/{Iter}' 
+                    print("|--------------------------> Crea DataFrame <-----------------------------------------|")
                     # Spark DataFrame Infiriendo el esquema y especificando que el archivo contiene encavezado,
                     df_Categoria = (spark
                                     .read
@@ -43,7 +44,7 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                                                 .load(filePaths,inferSchema = True, \
                                                     header = True, encoding="utf-8"))   
                     df_Categoria.printSchema()            
-                    print("|----------------------------------> Categoria <---------------------------------------------|")
+                    print("|---------------------------> Categoria <---------------------------------------------|")
                     # tranformacion 1
                     CategoriaRename = (df_Categoria.withColumnRenamed('Categoria','Nombre_Categoria'))
             
@@ -57,22 +58,23 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     # Escribe en el contenedor de un data lake.                
                     """(CategoriaRename
                             .toPandas()
-                                    .to_csv(filePathDataLake, storage_options = {'account_key': key_datalake} ,index=False))"""
+                                    .to_csv(filePathDataLake, storage_options = {'account_key': key_datalake}
+                                                                                                     ,index=False))"""
                     transform.append(CategoriaRename)
                 continue       
                                              # Transformacion | 2 |
             case "FactMine.csv":
-                print(f"|----------------------> Comenzamos con el etl en la tabla:{Iter}<-----------------------------|")
+                print(f"| -----------------> Comenzamos con el etl en la tabla:{Iter}<-----------------------------|")
                 if len(sys.argv) == 0:
                     # blob storage
                     filePaths = "wasbs://" + blob_container \
                                              + "@" + storage_name \
                                              + f".blob.core.windows.net/{Iter}"
                 else:
-                    #local
-                    #filePaths = f'file:/opt/spark/spark-warehouse/csv/{Iter}'
-                    #hadoop
-                    filePaths = f'hdfs://fede:9000/user/fede/input/csv/{Iter}' 
+                    # Local
+                    # filePaths = f'file:/opt/spark/spark-warehouse/csv/{Iter}'
+                    # Hadoop
+                    filePaths = f'hdfs://127.0.0.1:9000/user/fede/input/{Iter}' 
               
                     # Spark DataFrame Infiriendo el esquema y especificando que el archivo contiene encavezado.
                     df_FactMine = (spark
@@ -99,77 +101,82 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     SumTotalOreMined.show()
                     # Construimos la URL con el Nombre de la Transformacion Especifica.
                     filePathDataLake=f'abfs://{datalake_container}@{datalake_name}.\
-                                                                dfs.core.windows.net/SumTotalOreMined.csv'
+                                                                            dfs.core.windows.net/SumTotalOreMined.csv'
                     # Tranforma DataFrame Spark a Dataframe Pandas.
                     # luego a csv y escribe en el contenedor de un data lake.
                     """(SumTotalOreMined
                                 .toPandas()
                                         .to_csv(filePathDataLake,\
-                                            storage_options = {'account_key': key_datalake} \
-                                            ,index=False))"""
+                                                        storage_options = {'account_key': key_datalake},index=False))"""
                     transform.append(SumTotalOreMined)
                 continue 
                                                # Transformaciones | 3 | 4 |    
             case "Mine.csv":
-                print(f'|----------------> Comienzan las transformaciones en la tabla:{Iter}<----------------------|')
+                print(f'|----------------> Comienzan las transformaciones en la tabla:{Iter}<------------------|')
                 if len(sys.argv) == 0:
-                    #blob storage
+                    # blob storage
                     filePaths = "wasbs://" + blob_container \
                                              + "@" + storage_name \
                                              + f".blob.core.windows.net/{Iter}"
                 else:
-                    #local
-                    #filePaths = f'file:/opt/spark/spark-warehouse/csv/{Iter}'
-                    #hadoop
-                    filePaths = f'hdfs://fede:9000/user/fede/input/csv/{Iter}' 
-                    df_Mine = (spark
-                                    .read
+                    # Local
+                    # filePaths = f'file:/opt/spark/spark-warehouse/{Iter}'
+                    # Hadoop
+                    filePaths = f'hdfs://127.0.0.1:9000/user/fede/input/{Iter}' 
+                    df_Mine = (spark.read
                                         .format("csv")
                                             .option("header","true")
                                             .option("inferSchema","true")
-                                                .load(filePaths,inferSchema = True, header = True, \
-                                                                                     encoding="utf-8"))
+                                                .load(filePaths,inferSchema = True, header = True,encoding="utf-8"))
+                    
                     # Visualizamos Schema del DataFrame
                     df_Mine.printSchema()
-                    
+
                     # Query
-                    print("|---------------------------------> Query Select a Mine <-------------------------------|")
+                    print("|---------------------------> Query Select a Mine <-------------------------------|")
+
                     SelectedColumns = (df_Mine.select("Country","FirstName","LastName","Age"))
                     # Visualizamos Schema del DataFrame
                     SelectedColumns.show()
                     # Crea tabla Temporal
                     SelectedColumns.createOrReplaceTempView("SelectedColumnsTemporal")
                     # Query
-                    SelectedColumnsTemporalQuery = spark.sql("select Country, FirstName,Age from SelectedColumnsTemporal")
+                    SelectedColumnsTemporalQuery = spark.sql("select Country, FirstName,Age \
+                                                                                from SelectedColumnsTemporal")
                     # Visualiza
                     SelectedColumnsTemporalQuery.show()
                     # Construimos la URL con el Nombre de la Transformacion Especifica.
                     filePathDataLake=f'abfs://{datalake_container}@{datalake_name}.\
-                                                            dfs.core.windows.net/SelectedColumns.csv'
+                                                                        dfs.core.windows.net/SelectedColumns.csv'
                     # Tranforma DataFrame Spark a Dataframe Pandas luego a csv.
                     # Luego escribe en el contenedor de un data lake.
                     """SelectedColumns
                                 .toPandas()
                                         .to_csv(filePathDataLake,\
-                                            storage_options = {'account_key': key_datalake}\
-                                            ,index=False)"""
+                                            storage_options = {'account_key': key_datalake},index=False)"""
+
+                    #filePathHadoop=f'hdfs://127.0.0.1:9000/user/fede/output'
+                    filePaths = f'file:/opt/spark/spark-warehouse/{Iter}'
+
+                    #SelectedColumns.toPandas().to_csv(filePaths,index=False)
+
                     transform.append(SelectedColumns)
-                    print(f"|------------- ---------> Dataframe SumTotalWastedByCountry <--------------------------|")
+                    print(f"|-----------------> Dataframe SumTotalWastedByCountry <--------------------------|")
                     SumTotalWastedByCountry = (df_Mine
                                                 .groupBy("Country")
                                                     .agg(function.round(function.sum("TotalWasted"),4)
                                                         .alias("Suma_TotalWasted")))
                      
                     transform.append(SumTotalWastedByCountry)
-                     # Visualizamos Schema del DataFrame
+                    # Visualizamos Schema del DataFrame
                     SumTotalWastedByCountry.printSchema()
-                    print("|----------------------------------> View <-------------------------------------------|")
+                    print("|------------------------------> View <-------------------------------------------|")
                     # Crea tabla Temporal
                     SumTotalWastedByCountry.createOrReplaceTempView("SumTotalWastedByCountryTemporal")
                     # Query
                     SumTotalWastedByCountryQuery = spark.sql("select Country from SumTotalWastedByCountryTemporal")
                     # Visualiza
-                    SumTotalWastedByCountryQuery.show()  
+                    SumTotalWastedByCountryQuery.show()
                 
                     # Construimos la URL con el Nombre de la Transformacion Especifica.
                     filePathDataLake=f'abfs://{datalake_container}@{datalake_name}.\
@@ -180,23 +187,22 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     """(SumTotalWastedByCountry
                                         .toPandas()
                                             .to_csv(filePathDataLake,\
-                                                storage_options = {'account_key': key_datalake} \
-                                                ,index=False))"""
+                                                storage_options = {'account_key': key_datalake},index=False))"""
                 continue 
                                                     
                                                     # Transformacion | 5 |
             case "Producto.csv":
-                print(f"|------------------> Comienzan las tranformaciones en la tabla:{Iter} <-------------------|")
+                print(f"|---------------> Comienzan las tranformaciones en la tabla:{Iter} <-------------------|")
                 if len(sys.argv) == 0:
                     #blob storage
                     filePaths = "wasbs://" + blob_container \
                                              + "@" + storage_name \
                                              + f".blob.core.windows.net/{Iter}"
                 else:
-                    #local
-                    #filePaths = f'file:/opt/spark/spark-warehouse/csv/{Iter}'
-                    #hadoop
-                    filePaths = f'hdfs://fede:9000/user/fede/input/csv/{Iter}' 
+                    # local
+                    # filePaths = f'file:/opt/spark/spark-warehouse/csv/{Iter}'
+                    # Hadoop
+                    filePaths = f'hdfs://127.0.0.1:9000/user/fede/input/{Iter}' 
                     df_Productos = (spark
                                         .read
                                             .format("csv")
@@ -210,7 +216,7 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     ProductCount = (df_Productos.agg(function.count("Cod_Producto").alias("Cantidad_CodProducto")))
                     # Visualizamos Schema del DataFrame ProductoCount
                     ProductCount.show()
-                    print("|----------------------------------> View <-------------------------------------------|")
+                    print("|------------------------------> View <-------------------------------------------|")
                     # Crea tabla Temporal
                     ProductCount.createOrReplaceTempView("ProductCountTemporal")
                     # Query
@@ -226,8 +232,7 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     """ProductCount
                             .toPandas()
                                 .to_csv(filePathDataLake,\
-                                            storage_options = {'account_key': key_datalake}\ 
-                                            ,index=False)"""
+                                            storage_options = {'account_key': key_datalake},index=False)"""
                 
                     ProductosCount_Cast = (ProductCount
                                                 .withColumn("Cantidad_CodProducto" \
@@ -244,14 +249,13 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     """ProductosCount_Cast
                                     .toPandas()
                                         .to_csv(filePathDataLake,\
-                                                storage_options = {'account_key': key_datalake}\
-                                                 ,index=False)"""
+                                                storage_options = {'account_key': key_datalake},index=False)"""
                     
                 continue
                                                # Transformaciones 6 | 7 | 8 | 9
             
             case "VentasInternet.csv":
-                print(f"|------------->Comienzan las Tranformaciones en la tabla: {Iter}<----------------------|")
+                print(f"|-------------> Comienzan las Tranformaciones en la tabla: {Iter} <----------------------|")
                 if len(sys.argv) == 0:
                     #blobs storage
                     filePaths = "wasbs://" + blob_container \
@@ -260,25 +264,25 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                 
                 else:
                     #local
-                    #filePaths = f'file:/opt/spark/spark-warehouse/csv/{Iter}'
+                    filePaths = f'file:/opt/spark/spark-warehouse/csv/{Iter}'
                     #hadoop
-                    filePaths = f'hdfs://fede:9000/user/fede/input/csv/{Iter}'                       
+                    #filePaths = f'hdfs://127.0.0.1:9000/user/fede/input/{Iter}'                       
                     # DataFrame df_VentasInternet
                     df_VentasInternet = (spark
                                             .read
                                             .format("csv")
                                                 .option("header","true")
                                                 .option("inferSchema","true")
-                                                    .load(filePaths,inferSchema = True, header = True,\
-                                                                                        encoding="utf-8"))
-                    print("|--------------------->   Schema de Ventas Internet <------------------------------|")
+                                                    .load(filePaths,inferSchema = True, header = True,encoding="utf-8"))
+
+                    print("|--------------------->   Schema de Ventas Internet <--------------------------------|")
                     # Visualizamos Schema
                     df_VentasInternet.printSchema()
                     
                     TableSortedByDescCode = (df_VentasInternet.sort(function.col("Cod_Producto").desc()))
                     # Visualizamos la tabla.
                     transform.append(TableSortedByDescCode)
-                    print("|-------------------->Visualizamos tabla TableSortedByDescCode<--------------------|")
+                    print("|--------------------> Visualizamos tabla TableSortedByDescCode <--------------------|")
                     TableSortedByDescCode.show()
                     # Crea tabla Temporal
                     TableSortedByDescCode.createOrReplaceTempView("TableSortedByDescCodeTemporal")
@@ -295,8 +299,7 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     """TableSortedByDescCode
                                     .toPandas()
                                         .to_csv(filePathDataLake,\
-                                                storage_options = {'account_key': key_datalake} 
-                                                ,index=False)"""
+                                                storage_options = {'account_key': key_datalake},index=False)"""
 
                     SubcategoriaFiltered = TableSortedByDescCode.filter(TableSortedByDescCode['Cod_Territorio']>=9)
                     transform.append(SubcategoriaFiltered)
@@ -318,8 +321,7 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     """SubcategoriaFiltered
                                     .toPandas()
                                         .to_csv(filePathDataLake,\
-                                            storage_options = {'account_key': key_datalake} 
-                                            ,index=False)"""
+                                            storage_options = {'account_key': key_datalake},index=False)"""
                 
                     VentasWithNetIncome = (df_VentasInternet
                                                     .withColumn("Ingresos_Netos", function
@@ -346,8 +348,7 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     """VentasWithNetIncome
                                 .toPandas()
                                     .to_csv(filePathDataLake,\
-                                            storage_options = {'account_key': key_datalake} \
-                                            ,index=False)"""
+                                            storage_options = {'account_key': key_datalake},index=False)"""
 
                     IngresosPorCodProducto = (VentasWithNetIncome
                                                 .groupBy(function
@@ -376,8 +377,7 @@ def main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake):
                     """IngresosPorCodProducto
                                 .toPandas()
                                     .to_csv(filePathDataLake,\
-                                            storage_options = {'account_key': key_datalake} 
-                                            ,index=False)"""
+                                            storage_options = {'account_key': key_datalake},index=False)"""
                 continue 
             case _:
                 raise ValueError("No se encuenta el Arcvhivo.")
@@ -388,25 +388,26 @@ if __name__ == "__main__":
     import dotenv
     import sys
     import os
-    # cargamos las variables de entorno
+    # Cargamos las variables de entorno.
+
     dotenv.load_dotenv()
     storage_name = 'storagebasedatos2510'
     key_blobs = os.getenv('KEY_BLOBS')
     datalake_name = 'storagedatalake2510'
     key_datalake = os.getenv('KEY_DATALAKE')
+
     # Nombre del contenedor del Blob storage donde se encuentren los csv
     # Cree una SparkSession utilizando las API SparkSession.
     # Si no existe entonces cree una instancia.
     # Solo puede ser una Intancia por JVM.
     spark = SparkSession.builder.master("local[3]").appName("etl").getOrCreate()
-    # Patterns = dbutils.widgets.get('parametro_direcciones').split(",")
     patterns= sys.argv[1:]
-    print(patterns)
     if len(patterns) > 0: 
         logger = Log4j(spark)
         main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake)                                       
         spark.stop()                                              
     else:
+        patterns = dbutils.widgets.get('parametro_direcciones').split(",")
         logger = Log4j(spark)
         main(spark,patterns,storage_name,key_blobs,datalake_name,key_datalake)                                       
         spark.stop()  

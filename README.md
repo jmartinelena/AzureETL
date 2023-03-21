@@ -5,8 +5,10 @@
   - [Introduccion](#introducción)
   - [Objetivos](#objetivos)
   - [Assets](#assets)
+  - [Desarrollo](#desarrollo)
 - [Parte 2](#parte-2)
   - [Introducción](#introducción-1)
+  - [Desarrollo](#desarrollo-1)
 - [Navegación](#navegación)
 
 # Integrantes
@@ -45,6 +47,9 @@ Crearemos una canalización que permita:
 <li>Cargar la tabla transformada dentro de un Data Lake a través del proceso de ETL.</li>
 </ul>
 
+**Arquitectura base propuesta:**  
+![Arquitectura base propuesta](https://i.imgur.com/uKx2jUr.png "Arquitectura base propuesta")
+
 ## Transformaciones
 
 Transformaciones:
@@ -62,7 +67,12 @@ Transformaciones:
 </ol>
 
 ## Assets
+
 La base de datos a utilizar para el proyecto, podrás encontrarla en el siguiente <a href="https://github.com/laylascheli/alkemy_proyecto_aceleracion_practica">repositorio de GitHub</a>
+
+## Desarrollo
+
+El desarrollo y explicación se encuentra en la [rama martin](https://github.com/jmartinelena/AzureETL/tree/martin).
 
 # Parte 2
 
@@ -79,6 +89,10 @@ Cliente: Acceso anónimo, podrán hacer consultas por categoría, subcategoría 
 Proveedor: Acceso con credenciales. Ingresará la información de los productos y la cantidad
 - Internamente los productos se repartirán a todas las sucursales proporcionalmente a la cantidad de ventas de la sucursal, con un mínimo de "1" producto según disponibilidad, esto quiere decir que si hay 3 productos y 10 sucursales, el producto se repartirá al top 3 de las sucursales.
 - Agregar nuevos productos.
+
+## Desarrollo
+
+El desarrollo y explicación se encuentran en la [rama api](https://github.com/jmartinelena/AzureETL/tree/api).
 
 # Navegación
 
